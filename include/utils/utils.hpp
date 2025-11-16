@@ -11,8 +11,14 @@
 
 #define WSC_STRINGIFY_IMPL_(token) #token
 #define WSC_STRINGIFY(token) WSC_STRINGIFY_IMPL_(token)
+
+#define WSC_SHOWMAT(mat) wsc::utils::showMat<__func__, "():", WSC_STRINGIFY(__LINE__)>(mat)
+
+#define WSC_EXCEPTIONSTR static constexpr const char
+#define WSC_ASSERTSTR static constexpr const char
+
 #define WSC_EXCEPT_FORMAT(message)                                                                \
-  wsc::ConcatenateLiterals<                                                                       \
+  wsc::utils::ConcatenateLiterals<                                                                \
       "An exception has occured at ", __FILE__, " in ", __func__, "():", WSC_STRINGIFY(__LINE__), \
       "\n", message>()()                                                                          \
       .data()
@@ -25,7 +31,7 @@
     if (!(condition))                                                                             \
     {                                                                                             \
       std::cerr << "\033[2J\033[H"                                                                \
-                << wsc::ConcatenateLiterals<                                                      \
+                << wsc::utils::ConcatenateLiterals<                                               \
                        "Assertion failed: ", #condition, " at ", __FILE__, " in ", __func__,      \
                        "():", WSC_STRINGIFY(__LINE__), "\n", message, "\nStop debugger at line ", \
                        WSC_STRINGIFY(__LINE__) "? (Y/N): ">()()                                   \
@@ -61,10 +67,10 @@
 #define WSC_PROFILESCOPEN(name)
 
 #endif
-namespace wsc
+namespace wsc::utils
 {
 
-template <size_t S>
+template <std::size_t S>
 struct Literal
 {
   std::array<char, S> data = {};
@@ -102,16 +108,38 @@ struct ConcatenateLiterals
   }
 };
 
+template <Literal... Args>
+void showMat(const cv::Mat &mat)
+{
+  cv::imshow(ConcatenateLiterals<Args...>()().data(), mat);
+  cv::waitKey(0);
+}
+
 /**
  * Calls GetLastError() if condition isn't met, and throws an
  * std::system_error(std::system_category()) along with a message.
  */
-constexpr void windowsRequire(bool condition, const char *message);
+void windowsRequire(bool condition, const char *message);
 
 /**
  * Throws an std::runtime_error along with the message if a condition
  * isn't met.
  */
-constexpr void runtimeRequire(bool condition, const char *message);
+void runtimeRequire(bool condition, const char *message);
 
-}  // namespace wsc
+/**
+ * Logs messages with a severity level of ERROR.
+ */
+void logError([[maybe_unused]] std::string_view message);
+
+/**
+ * Logs messages with a severity level of INFO.
+ */
+void logInfo([[maybe_unused]] std::string_view message);
+
+/**
+ * Shows the image given as a mat and waits for the
+ * user to press 'Q' to continue. Blocks otherwise.
+ */
+
+}  // namespace wsc::utils

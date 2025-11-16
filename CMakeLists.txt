@@ -22,12 +22,11 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(Tracy)
-file(GLOB_RECURSE SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.cpp")
-set(SOURCES ${SRC_FILES})
+file(GLOB_RECURSE SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 set(INCLUDES "${CMAKE_SOURCE_DIR}/include" ${OpenCV_INCLUDE_DIRS})
 
 set(LINK_LIBRARIES Tracy::TracyClient ${OpenCV_LIBS})
-# set(COMPILE_OPTIONS <OPTS>)
+set(COMPILE_OPTIONS /EHsc)
 # set(COMPILE_DEFINITIONS <DEFS>)
 
 set(ADD_MSVC_COMPILE_OPTS /W4 /WX)
@@ -44,8 +43,9 @@ add_custom_command(
 
 target_sources(${PNAME} PRIVATE ${SOURCES})
 target_include_directories(${PNAME} PRIVATE ${INCLUDES})
+target_precompile_headers(${PNAME} PRIVATE "${CMAKE_SOURCE_DIR}/include/core/pch.hpp")
 target_link_libraries(${PNAME} PRIVATE ${LINK_LIBRARIES})
-# target_compile_options(${PNAME} PRIVATE ${COMPILE_OPTIONS})
+target_compile_options(${PNAME} PRIVATE ${COMPILE_OPTIONS})
 # target_compile_definitions(${PNAME} PRIVATE ${COMPILE_DEFINITIONS})
 
 if (MSVC) 

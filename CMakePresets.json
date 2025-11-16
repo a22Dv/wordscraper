@@ -11,8 +11,8 @@
         "CMAKE_CXX_COMPILER": "clang-cl.exe",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_C_FLAGS": "--target=x86_64-pc-windows-msvc",
-        "CMAKE_CXX_FLAGS": "--target=x86_64-pc-windows-msvc",
+        "CMAKE_C_FLAGS": "--target=x86_64-pc-windows-msvc -fuse-ld=lld",
+        "CMAKE_CXX_FLAGS": "--target=x86_64-pc-windows-msvc -fuse-ld=lld",
         "CMAKE_TOOLCHAIN_FILE": "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
       }
     },
@@ -26,8 +26,8 @@
         "CMAKE_CXX_COMPILER": "clang-cl.exe",
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_C_FLAGS": "--target=x86_64-pc-windows-msvc",
-        "CMAKE_CXX_FLAGS": "--target=x86_64-pc-windows-msvc",
+        "CMAKE_C_FLAGS": "--target=x86_64-pc-windows-msvc -fuse-ld=lld",
+        "CMAKE_CXX_FLAGS": "--target=x86_64-pc-windows-msvc -fuse-ld=lld",
         "CMAKE_TOOLCHAIN_FILE": "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
       }
     }

@@ -8,6 +8,7 @@
             "binaryDir": "./build/debug/",
             "generator": "Ninja", 
             "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "clang-cl.exe",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_BUILD_TYPE": "Debug"
             }

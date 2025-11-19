@@ -13,8 +13,11 @@
 
 # Configuration.
 cmake_minimum_required(VERSION 4.0) # Not the absolute minimum required version. But bumped up for simplicity.
-set_property(DIRECTORY PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/src/*.cpp" # Reconfigure if source files get added to rerun GLOB_RECURSE.
+
+# Reconfigure if source files get added to rerun GLOB_RECURSE.
+set_property(DIRECTORY PROPERTY CMAKE_CONFIGURE_DEPENDS 
+    "${CMAKE_SOURCE_DIR}/src/*.cpp" 
+    "${CMAKE_SOURCE_DIR}/tests/*.cpp"
 )
 
 # Top-level details.
@@ -27,7 +30,8 @@ elseif (PROJECT_LANGUAGE STREQUAL "C")
     set(CMAKE_C_STANDARD ${PROJECT_STANDARD})
 endif()
 project(${PROJECT_NAME} ${PROJECT_LANGUAGE})
-add_executable(${PROJECT_NAME})
+
+add_library(${PROJECT_NAME}_LIB STATIC)
 
 # Packages
 include(FetchContent)
@@ -38,15 +42,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Tracy)
 find_package(OpenCV CONFIG REQUIRED)
-set(PACKAGE_INCLUDES ${OpenCV_INCLUDES})
+set(PACKAGE_INCLUDES ${OpenCV_INCLUDE_DIRS})
 set(PACKAGE_LIBS ${OpenCV_LIBS} Tracy::TracyClient)
 
 # Files/Dependencies
 file(GLOB_RECURSE SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
-target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
-target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/include" ${PACKAGE_INCLUDES})
-target_precompile_headers(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/include/core/pch.hpp")
-target_link_libraries(${PROJECT_NAME} PRIVATE ${PACKAGE_LIBS}) # No-op by default.
+target_sources(${PROJECT_NAME}_LIB PRIVATE ${SOURCES})
+target_include_directories(${PROJECT_NAME}_LIB PUBLIC "${CMAKE_SOURCE_DIR}/include" ${PACKAGE_INCLUDES})
+target_precompile_headers(${PROJECT_NAME}_LIB PUBLIC "${CMAKE_SOURCE_DIR}/include/core/pch.hpp")
+target_link_libraries(${PROJECT_NAME}_LIB PUBLIC ${PACKAGE_LIBS}) # No-op by default.
 
 # Compile definitions/options
 set(BASE_COMPILE_OPTIONS /WX /W4 /permissive-) 
@@ -55,8 +59,11 @@ if (PROJECT_LANGUAGE STREQUAL "CXX")
     list(APPEND BASE_COMPILE_OPTIONS /EHsc) # Exception support.
 endif()
 
-target_compile_options(${PROJECT_NAME} PRIVATE ${BASE_COMPILE_OPTIONS})
-target_compile_definitions(${PROJECT_NAME} PRIVATE) # No-op by default.
+target_compile_options(${PROJECT_NAME}_LIB PUBLIC ${BASE_COMPILE_OPTIONS})
+target_compile_definitions(${PROJECT_NAME}_LIB PUBLIC) # No-op by default.
+
+add_executable(${PROJECT_NAME} "${CMAKE_SOURCE_DIR}/app/main.cpp")
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_LIB)
 
 # Commands
 add_custom_command(
@@ -66,6 +73,21 @@ add_custom_command(
     "${CMAKE_SOURCE_DIR}/data"
     "${CMAKE_BINARY_DIR}/data"
 )
+
+# Tests 
+set(TEST_OUTPUT_DIR "${CMAKE_BINARY_DIR}/tests")
+file(GLOB_RECURSE TESTS "${CMAKE_SOURCE_DIR}/tests/*.cpp")
+foreach(TEST_SOURCE ${TESTS})
+    get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
+    add_executable(${TEST_NAME} ${TEST_SOURCE})
+    target_link_libraries(${TEST_NAME} PRIVATE ${PROJECT_NAME}_LIB)
+
+    set_target_properties(${TEST_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${TEST_OUTPUT_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TEST_OUTPUT_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TEST_OUTPUT_DIR}
+    )
+endforeach()
 
 
 

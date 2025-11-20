@@ -17,7 +17,9 @@ cmake_minimum_required(VERSION 4.0) # Not the absolute minimum required version.
 # Reconfigure if source files get added to rerun GLOB_RECURSE.
 set_property(DIRECTORY PROPERTY CMAKE_CONFIGURE_DEPENDS 
     "${CMAKE_SOURCE_DIR}/src/*.cpp" 
-    "${CMAKE_SOURCE_DIR}/tests/*.cpp"
+)
+set_property(DIRECTORY PROPERTY CMAKE_CONFIGURE_DEPENDS 
+    "${CMAKE_SOURCE_DIR}/tests/*.cpp" 
 )
 
 # Top-level details.

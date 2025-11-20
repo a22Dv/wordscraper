@@ -37,6 +37,8 @@ namespace wsr {
 class Screenshot {
   mutable detail::GdiData gdi_ = {};
   cv::Rect target_ = {};
+  int screenX_ = {};
+  int screenY_ = {};
  public:
   Screenshot();
 
@@ -51,7 +53,7 @@ class Screenshot {
 
   // Takes a screenshot and returns a buffer.
   std::vector<Rgba> take() const;
-  void setTarget(cv::Rect target) noexcept;
+  void setTarget(cv::Rect target);
 };
 
 }  // namespace wsr

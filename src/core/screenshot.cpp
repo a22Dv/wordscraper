@@ -17,28 +17,45 @@ GdiData::GdiData(int w, int h) {
   WSR_EXCEPTMSG(ccdcErrMsg) = "Device context cannot be created.";
   WSR_EXCEPTMSG(ccbErrMsg) = "Bitmap cannot be created.";
   WSR_EXCEPTMSG(bsoErrMsg) = "Bitmap cannot be retrieved.";
-  WSR_ASSERT(w > 0 && h > 0);
+  WSR_ASSERT(w >= 0 && h >= 0);
   WSR_PROFILE_SCOPE();
 
-  screenX = w ? w : GetSystemMetrics(SM_CXVIRTUALSCREEN);
-  screenY = h ? h : GetSystemMetrics(SM_CYVIRTUALSCREEN);
-  wsr::utils::windowsRequire(screenX && screenY, WSR_EXCEPTION(gsmErrMsg));
-  screenOffX = GetSystemMetrics(SM_XVIRTUALSCREEN);
-  screenOffY = GetSystemMetrics(SM_YVIRTUALSCREEN);
-  screenDc = GetDC(nullptr);
-  wsr::utils::windowsRequire(screenDc, WSR_EXCEPTION(gdcErrMsg));
-  memoryDc = CreateCompatibleDC(screenDc);
-  wsr::utils::windowsRequire(memoryDc, WSR_EXCEPTION(ccdcErrMsg));
-  bitmap = CreateCompatibleBitmap(screenDc, screenX, screenY);
-  wsr::utils::windowsRequire(bitmap, WSR_EXCEPTION(ccbErrMsg));
-  exBitmap = static_cast<HBITMAP>(SelectObject(memoryDc, bitmap));
-  wsr::utils::windowsRequire(exBitmap, WSR_EXCEPTION(bsoErrMsg));
-  bitmapInfo.biSize = sizeof(BITMAPINFOHEADER);
-  bitmapInfo.biBitCount = sizeof(wsr::Rgba) * CHAR_BIT;
-  bitmapInfo.biCompression = BI_RGB;
-  bitmapInfo.biPlanes = 1;
-  bitmapInfo.biWidth = screenX;
-  bitmapInfo.biHeight = -screenY;
+  try {
+    screenX = w ? w : GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    wsr::utils::windowsRequire(screenX, WSR_EXCEPTION(gsmErrMsg));
+    screenY = h ? h : GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    wsr::utils::windowsRequire(screenY, WSR_EXCEPTION(gsmErrMsg));
+    screenOffX = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    screenOffY = GetSystemMetrics(SM_YVIRTUALSCREEN);
+    screenDc = GetDC(nullptr);
+    wsr::utils::windowsRequire(screenDc, WSR_EXCEPTION(gdcErrMsg));
+    memoryDc = CreateCompatibleDC(screenDc);
+    wsr::utils::windowsRequire(memoryDc, WSR_EXCEPTION(ccdcErrMsg));
+    bitmap = CreateCompatibleBitmap(screenDc, screenX, screenY);
+    wsr::utils::windowsRequire(bitmap, WSR_EXCEPTION(ccbErrMsg));
+    exBitmap = static_cast<HBITMAP>(SelectObject(memoryDc, bitmap));
+    wsr::utils::windowsRequire(exBitmap, WSR_EXCEPTION(bsoErrMsg));
+    bitmapInfo.biSize = sizeof(BITMAPINFOHEADER);
+    bitmapInfo.biBitCount = sizeof(wsr::Rgba) * CHAR_BIT;
+    bitmapInfo.biCompression = BI_RGB;
+    bitmapInfo.biPlanes = 1;
+    bitmapInfo.biWidth = screenX;
+    bitmapInfo.biHeight = -screenY;
+  } catch (const std::system_error &sysE) {
+    if (exBitmap) {
+      SelectObject(memoryDc, exBitmap);
+    }
+    if (memoryDc) {
+      DeleteDC(memoryDc);
+    }
+    if (bitmap) {
+      DeleteObject(bitmap);
+    }
+    if (screenDc) {
+      ReleaseDC(nullptr, screenDc);
+    }
+    throw;
+  }
 }
 
 GdiData::GdiData(GdiData &&other) noexcept {
@@ -81,18 +98,21 @@ GdiData::~GdiData() {
 namespace wsr {
 
 Screenshot::Screenshot() {
-  target_.width = gdi_.screenX;
-  target_.height = gdi_.screenY;
+  target_.width = gdi_.screenX;   // Screen-size auto-detect.
+  target_.height = gdi_.screenY;  // Screen-size auto-detect.
   target_.x = 0;
   target_.y = 0;
+
+  screenX_ = target_.width;
+  screenY_ = target_.height;
 }
 
 int Screenshot::screenX() const noexcept {
-  return target_.width;
+  return screenX_;
 }
 
 int Screenshot::screenY() const noexcept {
-  return target_.height;
+  return screenY_;
 }
 
 cv::Rect Screenshot::target() const noexcept {
@@ -102,11 +122,13 @@ cv::Rect Screenshot::target() const noexcept {
 void Screenshot::take(std::vector<Rgba> &buffer) const {
   WSR_EXCEPTMSG(bbErrMsg) = "Bit-transfer encountered a failure.";
   WSR_EXCEPTMSG(gdbErrMsg) = "Bits cannot be copied onto buffer.";
-  WSR_ASSERT(target_.area() > 0);
+  WSR_ASSERT(target_.x >= 0 && target_.y >= 0);
+  WSR_ASSERT(target_.width >= 0 && target_.height >= 0);
+  WSR_ASSERT(target_.x + target_.width <= screenX_ && target_.y + target_.height <= screenY_);
   WSR_PROFILE_SCOPE();
 
   utils::logMessage(utils::LogSeverity::LOG_INFO, "Taking screenshot...");
-  if (buffer.size() < static_cast<std::size_t>(target_.area())) {
+  if (buffer.size() != std::size_t(target_.area())) {
     buffer.resize(target_.area());
   }
   BOOL rt = TRUE;
@@ -125,20 +147,23 @@ void Screenshot::take(std::vector<Rgba> &buffer) const {
 }
 
 std::vector<Rgba> Screenshot::take() const {
-  WSR_ASSERT(target_.area() > 0);
-
-  std::vector<Rgba> buffer(target_.area());
+  auto buffer = std::vector<Rgba>();
   take(buffer);
   return buffer;
 }
 
-void Screenshot::setTarget(cv::Rect target) noexcept {
-  WSR_ASSERT(target_.x + target.width >= 0 && target_.x + target.width <= gdi_.screenX);
-  WSR_ASSERT(target_.y + target.height >= 0 && target_.y + target.height <= gdi_.screenY);
-  WSR_ASSERT(target_.area() > 0);
+void Screenshot::setTarget(cv::Rect target) {
+  WSR_EXCEPTMSG(negativeInputErrMsg) = "Invalid target received.";
+  const bool positiveDimensions = target.width > 0 && target.height > 0;
+  const bool positiveOffset = target.x >= 0 && target.y >= 0;
+  const bool withinBoundsX = target.x + target.width <= screenX_;
+  const bool withinBoundsY = target.y + target.height <= screenY_;
+  const bool required = positiveDimensions && positiveOffset && withinBoundsX && withinBoundsY;
+  utils::runtimeRequire(required, WSR_EXCEPTION(negativeInputErrMsg));
 
   utils::logMessage(utils::LogSeverity::LOG_INFO, "Setting screenshot target...");
   if (target.width != target_.width || target.height != target_.height) {
+    utils::logMessage(utils::LogSeverity::LOG_INFO, "Setting new GDI data...");
     gdi_ = detail::GdiData(target.width, target.height);
   }
   target_ = target;

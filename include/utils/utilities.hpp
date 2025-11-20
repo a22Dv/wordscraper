@@ -25,6 +25,19 @@
   #define WSR_PROFILE_SCOPEN(name)
 #endif
 
+#define WSR_SIGNATURE(message)                                                          \
+  wsr::utils::ConcatenateLiterals<"[", __func__, "():", WSR_TO_LITERAL(__LINE__), "] ", \
+                                  message>::concat()                                    \
+      .data()
+#define WSR_IMGSHOW(image)                                                                   \
+  do {                                                                                       \
+    cv::imshow(                                                                              \
+        wsr::utils::ConcatenateLiterals<__func__, "():", WSR_TO_LITERAL(__LINE__)>::concat() \
+            .data(),                                                                         \
+        image);                                                                              \
+    cv::waitKey(0);                                                                          \
+  } while (false)
+
 #if defined(NDEBUG) && !defined(WSR_NOASSERT)
   #define WSR_ASSERT(condition)                                                                 \
     do {                                                                                        \
@@ -136,13 +149,26 @@ inline void logMessage(LogSeverity severity, std::string_view message) {
 
 inline void windowsRequire(bool condition, std::string_view message) {
   if (!condition) [[unlikely]] {
+    logMessage(LogSeverity::LOG_CRITICAL, message);
     throw std::system_error(GetLastError(), std::system_category(), message.data());
   }
 }
 
 inline void runtimeRequire(bool condition, std::string_view message) {
   if (!condition) [[unlikely]] {
+    logMessage(LogSeverity::LOG_CRITICAL, message);
     throw std::runtime_error(message.data());
+  }
+}
+
+template <typename Rep, typename Period>
+inline void preciseSleepFor(std::chrono::duration<Rep, Period> duration) {
+  if (duration <= duration.zero()) {
+    return;
+  }
+  const auto start = std::chrono::steady_clock::now();
+  while ((std::chrono::steady_clock::now() - start) < duration) {
+    _mm_pause();
   }
 }
 

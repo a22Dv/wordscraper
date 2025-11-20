@@ -21,10 +21,11 @@ class Input {
   int screenY_ = {};
   int cx_ = {};
   int cy_ = {};
-  int sampleRate_ = 1000;
-  INPUT createMInput_(int x, int y, int flags);
+  int sampleRate_ = 120;
+  INPUT createMInput_(int x, int y, int flags) const;
   void leftDown_();
   void leftUp_();
+  void setCPos_();
 
  public:
   Input();

@@ -66,15 +66,15 @@ namespace wsr::utils {
 template <std::size_t S>
 struct Literal {
   std::array<char, S - 1U> string = {};
-  constexpr Literal(const char (&str)[S]) noexcept {
+  consteval Literal(const char (&str)[S]) noexcept {
     for (std::size_t i = {}; i < S - 1U; ++i) {
       string[i] = str[i];
     }
   }
-  constexpr std::size_t size() const noexcept {
+  consteval std::size_t size() const noexcept {
     return string.size();
   }
-  constexpr char operator[](std::size_t i) const {
+  consteval char operator[](std::size_t i) const {
     return string[i];
   }
 };
@@ -84,7 +84,7 @@ struct ConcatenateLiterals {
   /**
    * Concatenates compile-time strings together.
    */
-  static constexpr std::array<char, (L.size() + ...) + 1U> concat() noexcept {
+  static consteval std::array<char, (L.size() + ...) + 1U> concat() noexcept {
     std::array<char, (L.size() + ...) + 1U> ccLiterals = {};
     std::size_t offset = {};
     const auto lambda = [&](const auto &literal) {
@@ -212,5 +212,23 @@ inline bool inRange(T val, T min, T max) {
   }
   return begin && end;
 }
+
+/**
+ * Gets the root directory of the current executable.
+ */
+inline std::filesystem::path getRoot() {
+  WSR_EXCEPTMSG(rDirErrMsg) = "Could not retrieve root directory.";
+  std::wstring buffer(MAX_PATH, '\0');
+  while (true) {
+    DWORD ch = GetModuleFileNameW(nullptr, buffer.data(), buffer.size());
+    wsr::utils::windowsRequire(ch, WSR_EXCEPTION(rDirErrMsg));
+    if (ch == buffer.size()) {
+      buffer.resize(buffer.size() * 2U);
+    }
+    break;
+  }
+  return std::filesystem::path(buffer).parent_path();
+}
+
 
 }  // namespace wsr::utils

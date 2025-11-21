@@ -16,23 +16,6 @@ namespace {
 constexpr std::size_t alphaCount = 26ULL;
 
 /**
- * Gets the root directory of the current executable.
- */
-fs::path getRoot() {
-  WSR_EXCEPTMSG(rDirErrMsg) = "Could not retrieve root directory.";
-  std::wstring buffer(MAX_PATH, '\0');
-  while (true) {
-    DWORD ch = GetModuleFileNameW(nullptr, buffer.data(), buffer.size());
-    wsr::utils::windowsRequire(ch, WSR_EXCEPTION(rDirErrMsg));
-    if (ch == buffer.size()) {
-      buffer.resize(buffer.size() * 2U);
-    }
-    break;
-  }
-  return fs::path(buffer).parent_path();
-}
-
-/**
  * A helper function that checks if a file entry
  * meets certain criteria to loading.
  */
@@ -104,7 +87,7 @@ Reader::Reader() {
   WSR_EXCEPTMSG(tmpMissingErrMsg) = "Incomplete template count.";
   WSR_EXCEPTMSG(tmpInvalidErrMsg) = "Invalid template dimensions.";
 
-  const fs::path dataPath = getRoot() / "data" / "templates";
+  const fs::path dataPath = utils::getRoot() / "data" / "templates";
   std::vector<char> names = {};
 
   templates_.reserve(alphaCount);

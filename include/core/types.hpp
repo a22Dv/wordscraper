@@ -4,7 +4,6 @@
  * Project-wide generic types.
  */
 
-#include <stdexcept>
 #include "core/pch.hpp"
 #include "utils/utilities.hpp"
 
@@ -139,24 +138,24 @@ class Matrix {
     return data_[y * sizeX_ + x];
   }
   T &at(Point pt) {
-    WSR_ASSERT(pt.x >= 0 && pt.y >= 0);
-    WSR_ASSERT(pt.x < sizeX_ && pt.y < sizeY_);
-    return at(pt.x, pt.y);
+    WSR_ASSERT(std::size_t(pt.x) >= 0 && std::size_t(pt.y) >= 0);
+    WSR_ASSERT(std::size_t(pt.x) < sizeX_ && std::size_t(pt.y) < sizeY_);
+    return at(std::size_t(pt.x), std::size_t(pt.y));
   }
   const T &at(Point pt) const {
-    WSR_ASSERT(pt.x >= 0 && pt.y >= 0);
-    WSR_ASSERT(pt.x < sizeX_ && pt.y < sizeY_);
-    return at(pt.x, pt.y);
+    WSR_ASSERT(std::size_t(pt.x) >= 0 && std::size_t(pt.y) >= 0);
+    WSR_ASSERT(std::size_t(pt.x) < sizeX_ && std::size_t(pt.y) < sizeY_);
+    return at(std::size_t(pt.x), std::size_t(pt.y));
   }
   T &operator[](Point pt) {
-    WSR_ASSERT(pt.x >= 0 && pt.y >= 0);
-    WSR_ASSERT(pt.x < sizeX_ && pt.y < sizeY_);
-    return data_[pt.y * sizeX_ + pt.x];
+    WSR_ASSERT(std::size_t(pt.x) >= 0 && std::size_t(pt.y) >= 0);
+    WSR_ASSERT(std::size_t(pt.x) < sizeX_ && std::size_t(pt.y) < sizeY_);
+    return data_[std::size_t(pt.y) * sizeX_ + std::size_t(pt.x)];
   }
   const T &operator[](Point pt) const {
-    WSR_ASSERT(pt.x >= 0 && pt.y >= 0);
-    WSR_ASSERT(pt.x < sizeX_ && pt.y < sizeY_);
-    return data_[pt.y * sizeX_ + pt.x];
+    WSR_ASSERT(std::size_t(pt.x) >= 0 && std::size_t(pt.y) >= 0);
+    WSR_ASSERT(std::size_t(pt.x) < sizeX_ && std::size_t(pt.y) < sizeY_);
+    return data_[std::size_t(pt.y) * sizeX_ + std::size_t(pt.x)];
   }
   void reserve(std::size_t capacity) {
     data_.reserve(capacity);

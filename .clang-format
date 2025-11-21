@@ -22,10 +22,11 @@ AllowShortIfStatementsOnASingleLine: Never
 AllowShortLambdasOnASingleLine: Inline
 AllowShortLoopsOnASingleLine: false
 AllowShortNamespacesOnASingleLine: false
+AlignAfterOpenBracket: BlockIndent # clang-format <v22.
 
 # -------------------------------- BinPacking -------------------------------- #
-BinPackArguments: true
-BinPackParameters: BinPack
+BinPackArguments: false
+BinPackParameters: OnePerLine
 
 # ----------------------------------- Break ---------------------------------- #
 BreakAfterAttributes: Always

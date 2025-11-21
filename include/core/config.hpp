@@ -5,7 +5,6 @@
  */
 
 #pragma once
-
 /* ------------------------------ Configuration ----------------------------- */
 
 // #define WSR_NOASSERT // Discards assertions for debug builds (Always disabled for release).

@@ -1,2 +1,5 @@
 build/
 .vscode/
+utilities/.venv/
+utilities/templates/
+utilities/data/

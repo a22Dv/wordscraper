@@ -133,13 +133,13 @@ void Screenshot::take(std::vector<Rgba> &buffer) const {
   }
   BOOL rt = TRUE;
   {
-    WSR_PROFILE_SCOPEN(BitBlt);
+    WSR_PROFILE_SCOPEN("BitBlt()");
     rt = BitBlt(gdi_.memoryDc, 0, 0, target_.width, target_.height, gdi_.screenDc,
                 gdi_.screenOffX + target_.x, gdi_.screenOffY + target_.y, SRCCOPY);
     utils::windowsRequire(rt, WSR_EXCEPTION(bbErrMsg));
   }
   {
-    WSR_PROFILE_SCOPEN(GetDIBits);
+    WSR_PROFILE_SCOPEN("GetDIBits()");
     rt = GetDIBits(gdi_.memoryDc, gdi_.bitmap, 0, target_.height, buffer.data(),
                    reinterpret_cast<LPBITMAPINFO>(&gdi_.bitmapInfo), DIB_RGB_COLORS);
     utils::windowsRequire(rt, WSR_EXCEPTION(gdbErrMsg));

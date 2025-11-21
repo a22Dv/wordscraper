@@ -5,7 +5,6 @@
  */
 
 #include "core/input.hpp"
-#include <winuser.h>
 #include "core/pch.hpp"
 #include "utils/utilities.hpp"
 
@@ -43,7 +42,7 @@ void Input::leftDown_() {
   INPUT input = createMInput_(cx_, cy_, MOUSEEVENTF_LEFTDOWN);
   UINT sRt = SendInput(1, &input, sizeof(INPUT));
   if (!sRt) {
-    utils::logMessage(utils::LogSeverity::LOG_ERROR, WSR_SIGNATURE(sInErrMsg));
+    utils::logMessage(utils::LogSeverity::LOG_ERROR, sInErrMsg);
   }
 }
 
@@ -52,7 +51,7 @@ void Input::leftUp_() {
   INPUT input = createMInput_(cx_, cy_, MOUSEEVENTF_LEFTUP);
   UINT sRt = SendInput(1, &input, sizeof(INPUT));
   if (!sRt) {
-    utils::logMessage(utils::LogSeverity::LOG_ERROR, WSR_SIGNATURE(sInErrMsg));
+    utils::logMessage(utils::LogSeverity::LOG_ERROR, sInErrMsg);
   }
 }
 
@@ -81,7 +80,7 @@ void Input::moveMouseTo(int x, int y, std::chrono::milliseconds duration) {
   setCPos_();
   WSR_ASSERT(duration >= std::chrono::milliseconds(0));
   if (x < 0 || y < 0 || x > screenX_ || y > screenY_) [[unlikely]] {
-    utils::logMessage(utils::LogSeverity::LOG_ERROR, WSR_SIGNATURE(clmpErrMsg));
+    utils::logMessage(utils::LogSeverity::LOG_ERROR, clmpErrMsg);
     x = std::clamp(x, 0, screenX_);
     y = std::clamp(y, 0, screenY_);
   }
@@ -103,7 +102,7 @@ void Input::moveMouseTo(int x, int y, std::chrono::milliseconds duration) {
     INPUT moveInput = createMInput_(int(cx_ + i * dXPerSegment), int(cy_ + i * dYPerSegment), MOUSEEVENTF_MOVE);
     UINT sRt = SendInput(1, &moveInput, sizeof(INPUT));
     if (!sRt) [[unlikely]] {
-      utils::logMessage(utils::LogSeverity::LOG_ERROR, WSR_SIGNATURE(sInErrMsg));
+      utils::logMessage(utils::LogSeverity::LOG_ERROR, sInErrMsg);
     }
     if (i == segments && !sRt) [[unlikely]] {
       lastSucceeded = false;

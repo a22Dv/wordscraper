@@ -36,7 +36,7 @@ GdiData::GdiData(int w, int h) {
     exBitmap = static_cast<HBITMAP>(SelectObject(memoryDc, bitmap));
     wsr::utils::windowsRequire(exBitmap, WSR_EXCEPTION(bsoErrMsg));
     bitmapInfo.biSize = sizeof(BITMAPINFOHEADER);
-    bitmapInfo.biBitCount = sizeof(wsr::Rgba) * CHAR_BIT;
+    bitmapInfo.biBitCount = sizeof(wsr::Rgb) * CHAR_BIT;
     bitmapInfo.biCompression = BI_RGB;
     bitmapInfo.biPlanes = 1;
     bitmapInfo.biWidth = screenX;
@@ -119,7 +119,7 @@ cv::Rect Screenshot::target() const noexcept {
   return target_;
 }
 
-void Screenshot::take(std::vector<Rgba> &buffer) const {
+void Screenshot::take(std::vector<Rgb> &buffer) const {
   WSR_EXCEPTMSG(bbErrMsg) = "Bit-transfer encountered a failure.";
   WSR_EXCEPTMSG(gdbErrMsg) = "Bits cannot be copied onto buffer.";
   WSR_ASSERT(target_.x >= 0 && target_.y >= 0);
@@ -146,8 +146,8 @@ void Screenshot::take(std::vector<Rgba> &buffer) const {
   }
 }
 
-std::vector<Rgba> Screenshot::take() const {
-  auto buffer = std::vector<Rgba>();
+std::vector<Rgb> Screenshot::take() const {
+  auto buffer = std::vector<Rgb>();
   take(buffer);
   return buffer;
 }

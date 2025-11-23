@@ -49,10 +49,10 @@ class Screenshot {
   // Takes screenshots based on a set target.
   // Note that this method will not resize the buffer 
   // if it exceeds the current target size.
-  void take(std::vector<Rgba>& buffer) const;
+  void take(std::vector<Rgb>& buffer) const;
 
   // Takes a screenshot and returns a buffer.
-  std::vector<Rgba> take() const;
+  std::vector<Rgb> take() const;
   void setTarget(cv::Rect target);
 };
 

@@ -146,9 +146,12 @@ void Database::sortFields_() {
 
 void Database::parseDictionaryData_() {
   WSR_EXCEPTMSG(parseFailErrMsg) = "Failed to parse text file.";
+  WSR_LOGMSG(parseDictStart) = "Constructing database dictionary data...";
   WSR_PROFILE_SCOPE();
   constexpr std::size_t expectedLineCount = 333333;
   dictionaryEntries_.reserve(expectedLineCount);
+
+  utils::logMessage(utils::LogSeverity::LOG_INFO, parseDictStart);
   for (std::size_t i = 0; i < dictionaryData_.size();) {
     const std::size_t wordEnd = dictionaryData_.find_first_of('\t', i);
     const std::size_t numEnd = dictionaryData_.find_first_of('\n', wordEnd + 1);
@@ -166,9 +169,11 @@ void Database::parseDictionaryData_() {
 
 void Database::parseLevelData_() {
   WSR_EXCEPTMSG(parseFailErrMsg) = "Failed to parse text file.";
+  WSR_LOGMSG(parseLevelStart) = "Constructing database level data...";
   WSR_PROFILE_SCOPE();
   constexpr std::size_t expectedLevelCount = 6000;
   levelEntriesMap_.reserve(expectedLevelCount);
+  utils::logMessage(utils::LogSeverity::LOG_INFO, parseLevelStart);
 
   for (std::size_t i = 0; i < levelData_.size();) {
     const std::size_t widthEnd = levelData_.find_first_of(' ', i);
@@ -205,40 +210,49 @@ void Database::parseLevelData_() {
 }
 
 Database::Database() {
+  WSR_EXCEPTMSG(constructFailErrMsg) = "Database construction failed.";
+  WSR_LOGMSG(constructStart) = "Constructing database.";
   WSR_PROFILE_SCOPE();
-  const fs::path root = utils::getRoot();
-  const fs::path dictionaryFilePath = root / "data" / "words.txt";
-  const fs::path levelEntriesFilePath = root / "data" / "data.txt";
 
-  std::ifstream dictionaryStream = {};
-  std::ifstream levelEntriesStream = {};
+  utils::logMessage(utils::LogSeverity::LOG_INFO, constructStart);
+  try {
+    const fs::path root = utils::getRoot();
+    const fs::path dictionaryFilePath = root / "data" / "words.txt";
+    const fs::path levelEntriesFilePath = root / "data" / "data.txt";
 
-  // ifstream::failbit not set to avoid issues regarding translation.
-  levelEntriesStream.exceptions(std::ifstream::badbit);
-  dictionaryStream.exceptions(std::ifstream::badbit);
+    std::ifstream dictionaryStream = {};
+    std::ifstream levelEntriesStream = {};
 
-  levelEntriesStream.open(levelEntriesFilePath);
-  dictionaryStream.open(dictionaryFilePath);
+    // ifstream::failbit not set to avoid issues regarding translation.
+    levelEntriesStream.exceptions(std::ifstream::badbit);
+    dictionaryStream.exceptions(std::ifstream::badbit);
 
-  const std::size_t dictionaryFileSize = fs::file_size(dictionaryFilePath);
-  const std::size_t levelEntriesFileSize = fs::file_size(levelEntriesFilePath);
-  dictionaryData_.resize(dictionaryFileSize);  // Zero-initialized.
-  levelData_.resize(levelEntriesFileSize);     // Zero-initialized.
+    levelEntriesStream.open(levelEntriesFilePath);
+    dictionaryStream.open(dictionaryFilePath);
 
-  dictionaryStream.read(dictionaryData_.data(), dictionaryFileSize);
-  levelEntriesStream.read(levelData_.data(), levelEntriesFileSize);
+    const std::size_t dictionaryFileSize = fs::file_size(dictionaryFilePath);
+    const std::size_t levelEntriesFileSize = fs::file_size(levelEntriesFilePath);
+    dictionaryData_.resize(dictionaryFileSize);  // Zero-initialized.
+    levelData_.resize(levelEntriesFileSize);     // Zero-initialized.
 
-  // Filesize is greater than true length due to byte->text \r\n translation.
-  const std::size_t tEndDictionaryData = std::strlen(dictionaryData_.data());
-  const std::size_t tEndLevelData = std::strlen(levelData_.data());
-  dictionaryData_.resize(tEndDictionaryData);
-  levelData_.resize(tEndLevelData);
-  dictionaryData_.shrink_to_fit();
-  levelData_.shrink_to_fit();
+    dictionaryStream.read(dictionaryData_.data(), dictionaryFileSize);
+    levelEntriesStream.read(levelData_.data(), levelEntriesFileSize);
 
-  parseDictionaryData_();
-  parseLevelData_();
-  sortFields_();
+    // Filesize is greater than true length due to byte->text \r\n translation.
+    const std::size_t tEndDictionaryData = std::strlen(dictionaryData_.data());
+    const std::size_t tEndLevelData = std::strlen(levelData_.data());
+    dictionaryData_.resize(tEndDictionaryData);
+    levelData_.resize(tEndLevelData);
+    dictionaryData_.shrink_to_fit();
+    levelData_.shrink_to_fit();
+
+    parseDictionaryData_();
+    parseLevelData_();
+    sortFields_();
+  } catch (...) {
+    utils::logMessage(utils::LogSeverity::LOG_CRITICAL, constructFailErrMsg);
+    throw;
+  }
 }
 
 std::optional<LevelData> Database::query(const Matrix<char> &grid, std::string_view letters) const {
@@ -290,6 +304,7 @@ namespace wsr {
 std::vector<std::string_view> Solver::fallbackDictionarySolve_(
     const Matrix<char> &grid, std::string_view letters
 ) const {
+  WSR_PROFILE_SCOPE();
   std::ignore = grid;
   /**
    * TODO: Implementation.
@@ -312,6 +327,7 @@ std::vector<std::string_view> Solver::fallbackDictionarySolve_(
 std::vector<std::string_view> Solver::querySolve_(
     const Matrix<char> &grid, std::string_view letters
 ) const {
+  WSR_PROFILE_SCOPE();
   const std::optional<detail::LevelData> level = database_.query(grid, letters);
   if (level.has_value()) {
     return level->words;
@@ -322,6 +338,7 @@ std::vector<std::string_view> Solver::querySolve_(
 std::vector<std::string_view> Solver::solve(const Matrix<char> &grid, std::string_view letters) {
   WSR_LOGMSG(logQueryGridSuccess) = "Query successful. Found matching entry...";
   WSR_LOGMSG(logQueryGridFail) = "Query unsuccessful. Using dictionary fallback...";
+  WSR_PROFILE_SCOPE();
   const auto queryResult = querySolve_(grid, letters);
   if (!queryResult.empty()) {
     utils::logMessage(utils::LogSeverity::LOG_INFO, logQueryGridSuccess);

@@ -122,10 +122,11 @@ Reader::Reader() {
 
 std::pair<float, char> Reader::match(cv::Mat image, cv::Rect bbox) const {
   WSR_ASSERT(bbox.x >= 0 && bbox.y >= 0);
-  WSR_ASSERT(image.type() == CV_8UC4);
+  WSR_ASSERT(image.type() == CV_8UC3);
   WSR_ASSERT(bbox.x + bbox.width <= image.cols && bbox.y + bbox.height <= image.rows);
+  WSR_PROFILE_SCOPE();
   cv::Mat roi = image(bbox).clone();
-  cv::cvtColor(roi, roi, cv::COLOR_RGBA2GRAY);
+  cv::cvtColor(roi, roi, cv::COLOR_RGB2GRAY);
   cv::resize(roi, roi, cv::Size(templateSideLength_, templateSideLength_));
 
   char maxCh = 'A';

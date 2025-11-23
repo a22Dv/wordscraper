@@ -11,11 +11,13 @@
 namespace wsr {
 
 class Recognizer {
-  std::optional<cv::Rect> findLevelLetterWheel_(const cv::Mat& screen) const;
-  std::optional<cv::Rect> findMainMenuLevelButton_(const cv::Mat& screen) const;
+
+  static std::optional<cv::Rect> findLevelLetterWheel_(const cv::Mat &screen);
+  static std::optional<cv::Rect> findMainMenuLevelButton_(const cv::Mat &screen);
+  
  public:
-  std::optional<cv::Rect> findMainMenu(const cv::Mat& screen) const;
-  std::optional<cv::Rect> findLevel(const cv::Mat& screen) const;
+  static std::optional<cv::Rect> findMainMenu(const cv::Mat &screen);
+  static std::optional<cv::Rect> findLevel(const cv::Mat &screen);
 };
 
 }  // namespace wsr

@@ -191,7 +191,7 @@ inline void preciseSleepFor(std::chrono::duration<Rep, Period> duration) {
  * min <= val <= max
  */
 template <const Literal range = "[]", std::totally_ordered T>
-inline bool inRange(T val, T min, T max) {
+bool inRange(T val, T min, T max) {
   bool begin = false;
   bool end = false;
   static_assert(range.size() == 2, "Invalid range specifier size.");

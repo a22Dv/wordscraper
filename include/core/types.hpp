@@ -168,4 +168,14 @@ class Matrix {
   }
 };
 
+struct MainMenu {
+  cv::Rect location_ = {};
+  cv::Rect levelButton_ = {};
+  cv::Rect settings_ = {};
+};
+
+struct Level {
+
+};
+
 }  // namespace wsr

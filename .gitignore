@@ -3,3 +3,5 @@ build/
 utilities/.venv/
 utilities/templates/
 utilities/data/
+utilities/data.txt
+utilities/failed_requests.json

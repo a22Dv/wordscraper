@@ -68,6 +68,7 @@
 #include <climits>
 #include <concepts>
 #include <condition_variable>
+#include <unordered_map>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>

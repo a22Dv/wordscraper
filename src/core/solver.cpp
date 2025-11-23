@@ -5,8 +5,8 @@
  */
 
 #include "core/solver.hpp"
+#include <memory>
 #include "core/pch.hpp"
-#include "core/types.hpp"
 #include "utils/utilities.hpp"
 
 namespace fs = std::filesystem;
@@ -14,66 +14,63 @@ namespace fs = std::filesystem;
 namespace {
 
 /**
- * Parses a matrix and returns all the segments that comprise it.
- * Matrix should have '\0' for out-of-bounds cells and a non-zero
- * value if filled in.
+ * Hashes a given layout string.
  */
-std::vector<wsr::AlignedSegment> getSegments(wsr::Matrix<char> &matrix) {
-  WSR_ASSERT(matrix.sizeX() <= std::numeric_limits<int>::max());
-  WSR_ASSERT(matrix.sizeY() <= std::numeric_limits<int>::max());
+std::size_t hashLayout(std::string_view layout) {
+  constexpr uint32_t prime = 37U;
+  size_t hash = 0;
+  uint32_t powP = prime;
+  for (auto ch : layout) {
+    hash += uint32_t(ch) * powP;
+    powP *= prime;
+  }
+  hash %= (0xFFFFFFFFULL + 1ULL);
 
-  std::vector<wsr::AlignedSegment> segments = {};
-  segments.reserve(matrix.sizeX() * matrix.sizeY());
+  return hash;
+};
 
-  bool inSegmentX = false;
-  wsr::Point segmentStartX = {};
-  std::vector<bool> inSegmentY(matrix.sizeX());
-  std::vector<wsr::Point> segmentStartY(matrix.sizeX());
+/**
+ * Returns a list of the space-separated words found in a section of
+ * the passed in data.
+ */
+std::vector<std::string_view> getWords(
+    const std::string &data, std::size_t wordsBegin, std::size_t wordsEnd
+) {
+  WSR_ASSERT(wordsBegin <= wordsEnd);
+  constexpr std::size_t averageWordSize = 5;
 
-  for (int y = 0; std::size_t(y) < matrix.sizeY(); ++y) {
-    for (int x = 0; std::size_t(x) < matrix.sizeX(); ++x) {
-      const char val = matrix[{x, y}];
-      if (inSegmentX && val == '\0') {
-        inSegmentX = false;
-        segments.emplace_back(segmentStartX, wsr::Point{x, y});
-      } else if (!inSegmentX && val != '\0') {
-        inSegmentX = true;
-        segmentStartX = {x, y};
-      }
-      if (inSegmentY[x] && val == '\0') {
-        inSegmentY[x] = false;
-        segments.emplace_back(segmentStartY[x], wsr::Point{x, y});
-      } else if (!inSegmentY[x] && val != '\0') {
-        inSegmentY[x] = true;
-        segmentStartY[x] = {x, y};
-      }
-    }
-    if (inSegmentX) {
-      segments.emplace_back(segmentStartX, wsr::Point(matrix.sizeX(), y));
+  std::vector<std::string_view> words = {};
+  words.reserve((wordsEnd - wordsBegin) / averageWordSize);
+
+  const auto endIter = data.begin() + wordsEnd;
+  auto wordStartIter = data.begin() + wordsBegin;
+  for (auto iter = wordStartIter; iter != endIter; ++iter) {
+    if (*iter == ' ') {
+      words.emplace_back(wordStartIter, iter);
+      wordStartIter = iter + 1;
+      continue;
     }
   }
-  for (int x = 0; std::size_t(x) < matrix.sizeX(); ++x) {
-    if (inSegmentY[x]) {
-      segments.emplace_back(segmentStartY[x], wsr::Point{x, int(matrix.sizeY())});
-    }
+  if (wordStartIter != endIter) {
+    words.emplace_back(wordStartIter, endIter);
   }
-  segments.shrink_to_fit();
-  return segments;
+  return words;
 }
 
 /**
- * Restricts a given list of entries associated by the indices based on a
- * given board state in a matrix.
- *
- * TODO: Implementation.
+ * Returns the layout string formatted into a matrix.
  */
-std::vector<std::size_t> restrictList(
-    const wsr::Solver &solver, const wsr::Matrix<char> grid, const std::vector<std::size_t> &indices
-) {
-  std::ignore = solver;
-  std::ignore = grid;
-  std::ignore = indices;
-  return indices;  // Do nothing.
+wsr::Matrix<char> getLayoutMatrix(std::size_t w, std::size_t h, std::string_view layoutString) {
+  WSR_ASSERT(w <= std::numeric_limits<int>::max());
+  WSR_ASSERT(h <= std::numeric_limits<int>::max());
+
+  wsr::Matrix<char> matrix(w, h);
+  for (int y = 0; std::size_t(y) < h; ++y) {
+    for (int x = 0; std::size_t(x) < w; ++x) {
+      matrix[{x, y}] = char(layoutString[y * int(w) + x] - '0');
+    }
+  }
+  return matrix;
 }
 
 }  // namespace
@@ -136,114 +133,202 @@ bool Signature::operator<(const Signature &rhs) const noexcept {
   return rhs > *this;
 }
 
+void Database::sortFields_() {
+  std::sort(dictionaryEntries_.begin(), dictionaryEntries_.end(), [](const auto &a, const auto &b) {
+    const std::size_t sizeA = a.view.size();
+    const std::size_t sizeB = b.view.size();
+    if (sizeA != sizeB) {
+      return sizeA < sizeB;
+    }
+    return a.frequency > b.frequency;
+  });
+}
+
+void Database::parseDictionaryData_() {
+  WSR_EXCEPTMSG(parseFailErrMsg) = "Failed to parse text file.";
+  WSR_PROFILE_SCOPE();
+  constexpr std::size_t expectedLineCount = 333333;
+  dictionaryEntries_.reserve(expectedLineCount);
+  for (std::size_t i = 0; i < dictionaryData_.size();) {
+    const std::size_t wordEnd = dictionaryData_.find_first_of('\t', i);
+    const std::size_t numEnd = dictionaryData_.find_first_of('\n', wordEnd + 1);
+    const char *pNStart = std::to_address(dictionaryData_.begin() + wordEnd + 1);
+    const char *pNEnd = std::to_address(dictionaryData_.begin() + numEnd);
+    std::size_t frequency = {};
+    const auto fchr = std::from_chars(pNStart, pNEnd, frequency);
+    utils::runtimeRequire(fchr.ptr == pNEnd, WSR_EXCEPTION(parseFailErrMsg));
+
+    const std::string_view view = {dictionaryData_.begin() + i, dictionaryData_.begin() + wordEnd};
+    dictionaryEntries_.emplace_back(Signature(view), view, frequency);
+    i = numEnd + 1;
+  }
+}
+
+void Database::parseLevelData_() {
+  WSR_EXCEPTMSG(parseFailErrMsg) = "Failed to parse text file.";
+  WSR_PROFILE_SCOPE();
+  constexpr std::size_t expectedLevelCount = 6000;
+  levelEntriesMap_.reserve(expectedLevelCount);
+
+  for (std::size_t i = 0; i < levelData_.size();) {
+    const std::size_t widthEnd = levelData_.find_first_of(' ', i);
+    const std::size_t heightEnd = levelData_.find_first_of(' ', widthEnd + 1);
+
+    std::size_t width = {};
+    std::size_t height = {};
+
+    const char *wStart = std::to_address(levelData_.begin() + i);
+    const char *wEnd = std::to_address(levelData_.begin() + widthEnd);
+    const char *hStart = std::to_address(levelData_.begin() + widthEnd + 1);
+    const char *hEnd = std::to_address(levelData_.begin() + heightEnd);
+    const auto wFchr = std::from_chars(wStart, wEnd, width);
+    const auto hFchr = std::from_chars(hStart, hEnd, height);
+
+    utils::runtimeRequire(wFchr.ptr == wEnd, WSR_EXCEPTION(parseFailErrMsg));
+    utils::runtimeRequire(hFchr.ptr == hEnd, WSR_EXCEPTION(parseFailErrMsg));
+
+    const auto iterLayoutBegin = levelData_.begin() + heightEnd + 1;
+    const auto iterLayoutEnd = iterLayoutBegin + width * height;
+    const std::string_view layout = {iterLayoutBegin, iterLayoutEnd};
+
+    const std::size_t wordsBegin = heightEnd + 1 + width * height + 1;  // + 1 to skip \t.
+    const std::size_t wordsEnd = [this, &wordsBegin] {
+      const std::size_t nline = levelData_.find_first_of('\n', wordsBegin);
+      return nline != levelData_.npos ? nline : levelData_.size();
+    }();
+    const wsr::Matrix<char> matrix = getLayoutMatrix(width, height, layout);
+    const std::vector<std::string_view> words = getWords(levelData_, wordsBegin, wordsEnd);
+    const std::size_t hash = hashLayout(layout);
+    levelEntriesMap_[hash] = {matrix, words};
+    i = wordsEnd + 1;
+  }
+}
+
+Database::Database() {
+  WSR_PROFILE_SCOPE();
+  const fs::path root = utils::getRoot();
+  const fs::path dictionaryFilePath = root / "data" / "words.txt";
+  const fs::path levelEntriesFilePath = root / "data" / "data.txt";
+
+  std::ifstream dictionaryStream = {};
+  std::ifstream levelEntriesStream = {};
+
+  // ifstream::failbit not set to avoid issues regarding translation.
+  levelEntriesStream.exceptions(std::ifstream::badbit);
+  dictionaryStream.exceptions(std::ifstream::badbit);
+
+  levelEntriesStream.open(levelEntriesFilePath);
+  dictionaryStream.open(dictionaryFilePath);
+
+  const std::size_t dictionaryFileSize = fs::file_size(dictionaryFilePath);
+  const std::size_t levelEntriesFileSize = fs::file_size(levelEntriesFilePath);
+  dictionaryData_.resize(dictionaryFileSize);  // Zero-initialized.
+  levelData_.resize(levelEntriesFileSize);     // Zero-initialized.
+
+  dictionaryStream.read(dictionaryData_.data(), dictionaryFileSize);
+  levelEntriesStream.read(levelData_.data(), levelEntriesFileSize);
+
+  // Filesize is greater than true length due to byte->text \r\n translation.
+  const std::size_t tEndDictionaryData = std::strlen(dictionaryData_.data());
+  const std::size_t tEndLevelData = std::strlen(levelData_.data());
+  dictionaryData_.resize(tEndDictionaryData);
+  levelData_.resize(tEndLevelData);
+  dictionaryData_.shrink_to_fit();
+  levelData_.shrink_to_fit();
+
+  parseDictionaryData_();
+  parseLevelData_();
+  sortFields_();
+}
+
+std::optional<LevelData> Database::query(const Matrix<char> &grid, std::string_view letters) const {
+  WSR_PROFILE_SCOPE();
+  const std::string_view gridData = {grid.data().data(), grid.sizeX() * grid.sizeY()};
+  const std::size_t levelHash = hashLayout(gridData);
+  const auto iter = levelEntriesMap_.find(levelHash);
+  if (iter == levelEntriesMap_.end()) {
+    return std::nullopt;
+  }
+  const std::vector<std::string_view> &words = iter->second.words;
+  const std::string_view longestEntry = *std::max_element( // Wordscapes' longest word uses all the available letters.
+      words.begin(), words.end(), [](auto a, auto b) { return a.size() < b.size(); }
+  );
+  if (Signature(letters) != Signature(longestEntry)) {
+    return std::nullopt;
+  }
+  return iter->second;
+}
+
+std::vector<DictionaryEntry> Database::query(std::string_view letters, QueryType type) const {
+  WSR_PROFILE_SCOPE();
+  const auto comparator = [type](const Signature &a, const Signature &b) {
+    switch (type) {
+      case QueryType::QUERY_SUBSETS:
+        return a >= b;
+      case QueryType::QUERY_SUPERSETS:
+        return a <= b;
+      case QueryType::QUERY_EQUALITY:
+        return a == b;
+      case QueryType::QUERY_INEQUALITY:
+        return a != b;
+    }
+  };
+  std::vector<DictionaryEntry> queryResult = {};
+  const auto letterSig = Signature(letters);
+  for (const auto &entry : dictionaryEntries_) {
+    if (comparator(letterSig, entry.signature)) {
+      queryResult.emplace_back(entry);
+    }
+  }
+  return queryResult;
+}
+
 }  // namespace wsr::detail
 
 namespace wsr {
 
-void Solver::sortFields_() {
-  std::vector<std::size_t> indices(strings_.size());
-  std::iota(indices.begin(), indices.end(), 0);
-  std::sort(indices.begin(), indices.end(), [this](auto a, auto b) {
-    const std::size_t aSize = strings_[a].size();
-    const std::size_t bSize = strings_[b].size();
-    if (aSize != bSize) {
-      return aSize < bSize;
-    }
-    return frequencies_[a] > frequencies_[b];
-  });
-
-  decltype(frequencies_) freqSorted = {};
-  decltype(signatures_) sigSorted = {};
-  decltype(strings_) strSorted = {};
-
-  freqSorted.reserve(frequencies_.size());
-  sigSorted.reserve(signatures_.size());
-  strSorted.reserve(strings_.size());
-
-  for (std::size_t i = 0; i < indices.size(); ++i) {
-    const std::size_t idx = indices[i];
-    freqSorted.emplace_back(frequencies_[idx]);
-    sigSorted.emplace_back(signatures_[idx]);
-    strSorted.emplace_back(strings_[idx]);
-  }
-
-  std::swap(frequencies_, freqSorted);
-  std::swap(signatures_, sigSorted);
-  std::swap(strings_, strSorted);
-}
-
-void Solver::parseTextFile_(std::size_t fileSize) {
-  WSR_EXCEPTMSG(parseFailErrMsg) = "Could not parse text file.";
-
-  for (std::size_t i = 0; i < fileSize;) {
-    const std::size_t wordEndIdx = data_.find_first_of('\t', i);
-    if (wordEndIdx == data_.npos) {
-      break;
-    }
-    const std::size_t numEndIdx = data_.find_first_of('\n', wordEndIdx);
-
-    const bool inBounds = wordEndIdx < fileSize && numEndIdx < fileSize;
-    utils::runtimeRequire(inBounds, WSR_EXCEPTION(parseFailErrMsg));
-    
-    const std::string_view word = {data_.begin() + i, data_.begin() + wordEndIdx};
-    const char *addrNSt = std::to_address(data_.begin() + wordEndIdx + 1);
-    const char *addrNEnd = std::to_address(data_.begin() + numEndIdx);
-    std::size_t freq = {};
-    const auto fch = std::from_chars(addrNSt, addrNEnd, freq);
-    utils::runtimeRequire(fch.ptr == addrNEnd, WSR_EXCEPTION(parseFailErrMsg));
-
-    signatures_.emplace_back(word);
-    strings_.emplace_back(word);
-    frequencies_.emplace_back(freq);
-
-    i = numEndIdx + 1;  // Skip \n.
-  }
-}
-
-Solver::Solver() {
-  WSR_PROFILE_SCOPE();
-  constexpr std::size_t expectedLCount = 333333;
-
-  fs::path dataPath = utils::getRoot() / "data" / "words.txt";
-  std::ifstream data = {};
-  data.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-  data.open(dataPath);
-
-  const std::size_t fileSize = fs::file_size(dataPath);
-  data_ = std::string(fileSize, '\0');
-  data.read(data_.data(), fileSize);
-
-  signatures_.reserve(expectedLCount);
-  strings_.reserve(expectedLCount);
-  frequencies_.reserve(expectedLCount);
-
-  parseTextFile_(fileSize);
-  sortFields_();
-}
-
-std::vector<std::string_view> Solver::solve(Matrix<char> grid, std::string_view letters) {
-  const std::vector<AlignedSegment> segments = getSegments(grid);
-  const auto lettersSignature = detail::Signature(letters);
-  std::vector<std::size_t> assocIdx = {};
-  assocIdx.reserve(128);
-
-  for (std::size_t i = 0; i < signatures_.size(); ++i) {
-    if (signatures_[i] <= lettersSignature) {
-      assocIdx.emplace_back(i);
-    }
-  }
-
-  std::vector<std::size_t> restrictedSubset = restrictList(*this, grid, assocIdx);
-
-  std::vector<std::string_view> strings = {};
-  strings.reserve(restrictedSubset.size());
+std::vector<std::string_view> Solver::fallbackDictionarySolve_(
+    const Matrix<char> &grid, std::string_view letters
+) const {
+  std::ignore = grid;
+  /**
+   * TODO: Implementation.
+   * NOTE:
+   * This is a placeholder implementation.
+   * The actual dictionary solver will use information from the grid to constrain
+   * the possible answers from the query result as much as possible.
+   */
+  const auto queryResult = database_.query(letters, detail::QueryType::QUERY_SUBSETS);
+  std::vector<std::string_view> words = {};
+  words.reserve(queryResult.size());
   std::transform(
-      restrictedSubset.begin(),
-      restrictedSubset.end(),
-      std::back_inserter(strings),
-      [this](auto i) { return strings_[i]; }
+      queryResult.begin(), queryResult.end(), std::back_inserter(words), [](const auto &a) {
+        return a.view;
+      }
   );
-  return strings;
+  return words;
+}
+
+std::vector<std::string_view> Solver::querySolve_(
+    const Matrix<char> &grid, std::string_view letters
+) const {
+  const std::optional<detail::LevelData> level = database_.query(grid, letters);
+  if (level.has_value()) {
+    return level->words;
+  }
+  return {};
+}
+
+std::vector<std::string_view> Solver::solve(const Matrix<char> &grid, std::string_view letters) {
+  WSR_LOGMSG(logQueryGridSuccess) = "Query successful. Found matching entry...";
+  WSR_LOGMSG(logQueryGridFail) = "Query unsuccessful. Using dictionary fallback...";
+  const auto queryResult = querySolve_(grid, letters);
+  if (!queryResult.empty()) {
+    utils::logMessage(utils::LogSeverity::LOG_INFO, logQueryGridSuccess);
+    return queryResult;
+  }
+  utils::logMessage(utils::LogSeverity::LOG_ERROR, logQueryGridFail);
+  return fallbackDictionarySolve_(grid, letters);
 }
 
 }  // namespace wsr

@@ -1,7 +1,7 @@
 /**
  * input.cpp
  *
- * Implementation for input methods.
+ * Implementation for input.hpp.
  */
 
 #include "core/input.hpp"
@@ -97,9 +97,11 @@ void Input::moveMouseTo(int x, int y, std::chrono::milliseconds duration) {
   const auto durSeg = std::chrono::duration_cast<std::chrono::nanoseconds>(duration) / segments;
   bool lastSucceeded = true;
   for (int i = 1; i <= segments; ++i) {
+    
     // createMInput_() recieves coordinates relative to current screen size
     // and translates them by itself to [0-UINT16_MAX].
-    INPUT moveInput = createMInput_(int(cx_ + i * dXPerSegment), int(cy_ + i * dYPerSegment), MOUSEEVENTF_MOVE);
+    INPUT moveInput =
+        createMInput_(int(cx_ + i * dXPerSegment), int(cy_ + i * dYPerSegment), MOUSEEVENTF_MOVE);
     UINT sRt = SendInput(1, &moveInput, sizeof(INPUT));
     if (!sRt) [[unlikely]] {
       utils::logMessage(utils::LogSeverity::LOG_ERROR, sInErrMsg);

@@ -38,21 +38,69 @@ class Signature {
   bool operator<(const Signature &rhs) const noexcept;
 };
 
+enum class QueryType : std::uint8_t {
+  QUERY_SUBSETS,
+  QUERY_SUPERSETS,
+  QUERY_EQUALITY,
+  QUERY_INEQUALITY
+};
+
+struct LevelData {
+  Matrix<char> layout = {};
+  std::vector<std::string_view> words = {};
+};
+
+struct DictionaryEntry {
+  Signature signature = {};
+  std::string_view view = {};
+  std::size_t frequency = {};
+};
+
+class Database {
+  std::string dictionaryData_ = {};
+  std::string levelData_ = {};
+  std::vector<DictionaryEntry> dictionaryEntries_ = {};
+
+  // Index is the map layout.
+  std::unordered_map<std::size_t, LevelData> levelEntriesMap_ = {};
+
+  void sortFields_();
+  void parseDictionaryData_();
+  void parseLevelData_();
+
+ public:
+  Database();
+
+  // Query the entries database for a matching answer key.
+  std::optional<LevelData> query(const Matrix<char> &grid, std::string_view letters) const;
+
+  // Query the dictionary for entries that match the criteria given a query type.
+  std::vector<DictionaryEntry> query(std::string_view letters, QueryType type) const;
+};
+
 }  // namespace wsr::detail
 
 namespace wsr {
 
 class Solver {
-  std::string data_ = {};
-  std::vector<std::string_view> strings_ = {};
-  std::vector<detail::Signature> signatures_ = {};
-  std::vector<std::size_t> frequencies_ = {};
+  detail::Database database_ = {};
 
-  void sortFields_();
-  void parseTextFile_(std::size_t fileSize);
+  // Manually solves the grid with the letters based on
+  // the current known vocabulary via constraint propagation.
+  std::vector<std::string_view> fallbackDictionarySolve_(
+      const Matrix<char> &grid, std::string_view letters
+  ) const;
+
+  // Solves a level if grid structure is found in the
+  // database. Returns an empty vector upon failure.
+  std::vector<std::string_view> querySolve_(
+      const Matrix<char> &grid, std::string_view letters
+  ) const;
+
  public:
-  Solver();
-  std::vector<std::string_view> solve(Matrix<char> grid, std::string_view letters);
+
+  // Solves a given level and returns the answers. Returns an empty vector upon failure.
+  std::vector<std::string_view> solve(const Matrix<char> &grid, std::string_view letters);
 };
 
 }  // namespace wsr

@@ -5,7 +5,6 @@
  */
 
 #include "core/reader.hpp"
-#include <filesystem>
 #include "core/pch.hpp"
 #include "utils/utilities.hpp"
 
@@ -59,7 +58,7 @@ float matchTemplateWInv(const cv::Mat &roi, const cv::Mat &tmplt) {
   }
   const int diff = std::min(accuDiff, accuInvDiff);
   float conf = float(diff) / (roi.rows * roi.cols * UINT8_MAX);  // Normalize.
-  return ((1.0f - std::min(conf, 1.0f - conf)) - 0.5f) / 0.5f;       // Rescale.
+  return ((1.0f - std::min(conf, 1.0f - conf)) - 0.5f) / 0.5f;   // Rescale.
 }
 
 /**
@@ -138,8 +137,9 @@ std::pair<float, char> Reader::match(cv::Mat image, cv::Rect bbox) const {
       maxCh = c;
     }
   }
-  utils::logMessage(utils::LogSeverity::LOG_DEBUG,
-                    std::format("'{}': {:.2f}%", maxCh, maxConfidence * 100.0f));
+  utils::logMessage(
+      utils::LogSeverity::LOG_DEBUG, std::format("'{}': {:.2f}%", maxCh, maxConfidence * 100.0f)
+  );
   return {maxConfidence, maxCh};
 }
 

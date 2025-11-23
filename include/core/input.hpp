@@ -1,7 +1,7 @@
 /**
  * input.hpp
  *
- * Declaration for input methods.
+ * Declaration for Input class.
  */
 
 #pragma once

@@ -7,17 +7,18 @@
 #pragma once
 
 #include "core/pch.hpp"
+#include "core/reader.hpp"
+#include "core/types.hpp"
 
 namespace wsr {
 
 class Recognizer {
-
-  static std::optional<cv::Rect> findLevelLetterWheel_(const cv::Mat &screen);
-  static std::optional<cv::Rect> findMainMenuLevelButton_(const cv::Mat &screen);
-  
+  const Reader reader_ = {};
+  std::pair<std::optional<cv::Rect>, bool> findLevelLetterWheel_(const cv::Mat &screen);
+  std::optional<cv::Rect> findMainMenuLevelButton_(const cv::Mat &screen);
  public:
-  static std::optional<cv::Rect> findMainMenu(const cv::Mat &screen);
-  static std::optional<cv::Rect> findLevel(const cv::Mat &screen);
+  std::optional<MainMenu> findMainMenu(const cv::Mat &screen);
+  std::optional<Level> findLevel(const cv::Mat &screen);
 };
 
 }  // namespace wsr

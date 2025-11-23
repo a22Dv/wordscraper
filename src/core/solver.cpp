@@ -21,11 +21,13 @@ std::size_t hashLayout(std::string_view layout) {
   size_t hash = 0;
   uint32_t powP = prime;
   for (auto ch : layout) {
+    if (ch != '0' && ch != '1') {
+      ch = '1'; // Handle cases where the board is partially filled.
+    }
     hash += uint32_t(ch) * powP;
     powP *= prime;
   }
   hash %= (0xFFFFFFFFULL + 1ULL);
-
   return hash;
 };
 

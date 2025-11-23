@@ -120,15 +120,26 @@ Reader::Reader() {
   sortTemplates(names, templates_);
 }
 
-std::pair<float, char> Reader::match(cv::Mat image, cv::Rect bbox) const {
+std::pair<float, char> Reader::match(const cv::Mat &image, cv::Rect bbox) const {
   WSR_ASSERT(bbox.x >= 0 && bbox.y >= 0);
-  WSR_ASSERT(image.type() == CV_8UC3);
   WSR_ASSERT(bbox.x + bbox.width <= image.cols && bbox.y + bbox.height <= image.rows);
+  WSR_ASSERT(image.type() == CV_8UC3 || image.type() == CV_8UC1);
   WSR_PROFILE_SCOPE();
-  cv::Mat roi = image(bbox).clone();
-  cv::cvtColor(roi, roi, cv::COLOR_RGB2GRAY);
-  cv::resize(roi, roi, cv::Size(templateSideLength_, templateSideLength_));
 
+  cv::Mat roi = {};
+  switch (image.type()) {
+    case CV_8UC3:
+      cv::cvtColor(image(bbox), roi, cv::COLOR_RGB2GRAY);
+      break;
+    case CV_8UC1:
+      roi = image(bbox).clone();
+      break;
+  }
+  cv::resize(roi, roi, cv::Size(templateSideLength_, templateSideLength_));
+  cv::threshold(roi, roi, 128, 255, cv::THRESH_OTSU);
+
+  WSR_IMGSHOW(roi);
+  
   char maxCh = 'A';
   float maxConfidence = 0.0f;
   for (char c = 'A'; c <= 'Z'; ++c) {

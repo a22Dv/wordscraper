@@ -20,7 +20,8 @@ class Reader {
      * Returns a confidence score and the predicted character
      * found in an image, within the passed bounding box.
      */
-    std::pair<float, char> match(cv::Mat image, cv::Rect bbox) const;
+    std::pair<float, char> match(const cv::Mat& image, cv::Rect bbox) const;
+
 };
 
 }  // namespace wsr

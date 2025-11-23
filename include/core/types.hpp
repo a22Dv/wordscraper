@@ -168,13 +168,16 @@ class Matrix {
 };
 
 struct MainMenu {
-  cv::Rect location_ = {};
-  cv::Rect levelButton_ = {};
-  cv::Rect settings_ = {};
+  cv::Rect location = {};
+  cv::Rect levelButton = {};
 };
 
 struct Level {
-
+  cv::Rect location = {};
+  cv::Rect wheel = {};
+  Matrix<char> grid = {};
+  std::vector<cv::Rect> letterLocations = {};
+  std::vector<char> letters = {};
 };
 
 }  // namespace wsr
